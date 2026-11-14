@@ -14,10 +14,10 @@ jobs:
 
       - name: Build macOS-compatible substrate (arm64e)
         run: |
-          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          SDK=$(xcrun --sdk macosx --show-sdk-path)
           echo "SDK=$SDK"
           mkdir -p out
-          clang -target arm64e-apple-ios13.0 -isysroot "$SDK" -dynamiclib -O2 \
+          clang -target arm64e-apple-macos13.0 -isysroot "$SDK" -dynamiclib -O2 \
             -install_name /usr/local/lib/libsubstrate.dylib \
             -o out/libsubstrate.dylib substrate_compat.c \
             -framework Foundation -framework CoreFoundation
@@ -25,7 +25,7 @@ jobs:
           otool -L out/libsubstrate.dylib
           echo "=== 导出符号 ==="
           nm -gU out/libsubstrate.dylib | grep -E 'MSHook|MSFind|MSGet'
-          ldid -S out/libsubstrate.dylib
+          codesign -s - -f out/libsubstrate.dylib
           codesign -dvvv out/libsubstrate.dylib 2>&1 | grep -iE "CDHash|Identifier" | head -4
           shasum -a 256 out/libsubstrate.dylib | awk '{print $1}' > out/libsubstrate.sha256
 
