@@ -16,7 +16,10 @@ typedef void *MSImageRef;
 
 MSImageRef MSGetImageByName(const char *file) {
     if (!file) return NULL;
-    return dlopen(file, RTLD_NOW | RTLD_LOCAL);
+    // RTLD_NOLOAD: return an existing image only, never trigger init of an
+    // unloaded framework. The chroot SkyLight framework is not loadable by a
+    // headless client; forcing RTLD_NOW init faults (Bus error) inside it.
+    return dlopen(file, RTLD_NOW | RTLD_NOLOAD);
 }
 
 void *MSFindSymbol(MSImageRef image, const char *name) {
