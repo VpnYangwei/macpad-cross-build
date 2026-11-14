@@ -1,0 +1,5 @@
+.theos/
+misc/build-out/
+*.o
+*.d
+.DS_Store

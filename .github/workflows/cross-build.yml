@@ -1,0 +1,46 @@
+name: macws-windowing-cross-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GNU make
+        run: |
+          brew install make
+          echo "$(brew --prefix)/opt/make/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Install theos
+        run: |
+          export THEOS=/opt/theos
+          sudo mkdir -p "$THEOS"
+          sudo chown "$USER" "$THEOS"
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$THEOS" 2>&1 | tail -3
+
+      - name: Link iPhoneOS SDK into theos
+        run: |
+          export THEOS=/opt/theos
+          SDK_DIR=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "SDK_DIR=$SDK_DIR"
+          SDK_VER=$(basename "$SDK_DIR" | sed 's/^[^0-9]*//')
+          echo "SDK_VER=$SDK_VER"
+          ln -s "$SDK_DIR" "$THEOS/sdks/iPhoneOS16.0.sdk"
+          ls -l "$THEOS/sdks/"
+
+      - name: Build MacWSWindowing (auth-bind arm64e)
+        env:
+          THEOS: /opt/theos
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          bash misc/build_only.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacWSWindowing-cross
+          path: misc/build-out/
+          if-no-files-found: error
