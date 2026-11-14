@@ -14,10 +14,10 @@ jobs:
 
       - name: Build macOS-compatible substrate (arm64e)
         run: |
-          SDK=$(xcrun --sdk macosx --show-sdk-path)
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "SDK=$SDK"
           mkdir -p out
-          clang -target arm64e-apple-macos13.0 -isysroot "$SDK" -dynamiclib -O2 \
+          clang -target arm64e-apple-ios13.0 -isysroot "$SDK" -dynamiclib -O2 \
             -install_name /usr/local/lib/libsubstrate.dylib \
             -o out/libsubstrate.dylib substrate_compat.c \
             -framework Foundation -framework CoreFoundation
