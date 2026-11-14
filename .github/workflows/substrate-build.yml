@@ -22,7 +22,7 @@ jobs:
           otool -L out/libsubstrate.dylib
           echo "=== 导出符号 ==="
           nm -gU out/libsubstrate.dylib | grep -E 'MSHook|MSFind|MSGet'
-          codesign -s - -f out/libsubstrate.dylib
+          ldid -S out/libsubstrate.dylib
           codesign -dvvv out/libsubstrate.dylib 2>&1 | grep -iE "CDHash|Identifier" | head -4
           shasum -a 256 out/libsubstrate.dylib | awk '{print $1}' > out/libsubstrate.sha256
 
