@@ -70,6 +70,13 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         if (result) *result = NULL;
         return;
     }
+    // Experimental: skip no-trampoline hooks. The libmachook SkyLight
+    // installer hooks _audit_token_check_tcc_access with result==NULL; that
+    // patch changes execution flow and the subsequent MER callback PAC
+    // authentication faults. Only hook when a trampoline (orig) is wanted.
+    if (!result) {
+        return;
+    }
     uint64_t target = strip_pac((uint64_t)symbol);
     uint64_t repl = strip_pac((uint64_t)replace);
 
