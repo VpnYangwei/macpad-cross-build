@@ -9,6 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install ldid
+        run: brew install ldid
+
       - name: Build macOS-compatible substrate (arm64e)
         run: |
           SDK=$(xcrun --sdk macosx --show-sdk-path)
