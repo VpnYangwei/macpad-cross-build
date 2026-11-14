@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <mach/mach.h>
+#include <libkern/OSCacheControl.h>
 #include <objc/runtime.h>
 
 typedef void *MSImageRef;
