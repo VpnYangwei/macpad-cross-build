@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <mach/mach.h>
 #include <libkern/OSCacheControl.h>
+#include <ptrauth.h>
 #include <objc/runtime.h>
 
 typedef void *MSImageRef;
@@ -73,18 +74,28 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     uint64_t repl = strip_pac((uint64_t)replace);
 
     if (result) {
-        // trampoline: original 16 bytes + branch back to target+16
+        // trampoline: original 16 bytes + branch back to target+16.
+        // arm64e: the returned trampoline pointer must carry the same PAC
+        // signature the caller expects for a function pointer, otherwise the
+        // indirect call faults (Bus error). Sign it with the ASIA key using
+        // the stripped target address as discriminator.
         uint8_t *tramp = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE,
                               MAP_ANON | MAP_PRIVATE, -1, 0);
         if (tramp == MAP_FAILED) { *result = NULL; return; }
         memcpy(tramp, (void *)target, 16);
         uint64_t after = target + 16;
         int64_t off = (int64_t)(after - ((uint64_t)tramp + 16));
-        uint32_t b = 0x14000000U | ((uint32_t)((off >> 2) & 0x03FFFFFFU));
-        *(uint32_t *)(tramp + 16) = b;
+        if (off >= -0x08000000LL && off < 0x08000000LL) {
+            uint32_t b = 0x14000000U | ((uint32_t)((off >> 2) & 0x03FFFFFFU));
+            *(uint32_t *)(tramp + 16) = b;
+        }
         mprotect(tramp, 0x4000, PROT_READ | PROT_EXEC);
         sys_icache_invalidate(tramp, 32);
+#if defined(__arm64e__)
+        *result = ptrauth_sign_unauthenticated(tramp, ptrauth_key_asia, target);
+#else
         *result = tramp;
+#endif
     }
 
     make_writable(target, 16);
