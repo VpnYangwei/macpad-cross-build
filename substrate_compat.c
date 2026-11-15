@@ -114,11 +114,8 @@ static void write_branch(uint64_t from, uint64_t to) {
         *(uint32_t *)from = b;
     }
     sys_icache_invalidate((void *)from, 16);
-    // Restore RX: leaving the dyld-cache page writable makes later execution
-    // fault (Bus error) under APRR.
-    vm_protect(mach_task_self(), (vm_address_t)page, page_len,
-               false, VM_PROT_READ | VM_PROT_EXECUTE);
-    // Verify the patch survived the RX restore.
+    // EXPERIMENT: do not restore RX (keep the COW page writable) to test
+    // whether the RX restore was rolling the patch back.
     {
         char buf[64];
         uint32_t insn = *(uint32_t *)from;
