@@ -117,11 +117,10 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         mprotect(tramp, 0x4000, PROT_READ | PROT_EXEC);
         sys_icache_invalidate(tramp, 32);
 #if defined(__arm64e__)
-        // Hand-written PACIA instead of the ptrauth_sign_unauthenticated
-        // builtin: the builtin emits __ptrauth fixups that dyld rejects on
-        // this chroot path, while a plain pacia instruction does not.
+        // Function-pointer calls authenticate with a zero discriminator
+        // (pacizb). Signing with the target as discriminator faults later.
         uint64_t signed_tramp = (uint64_t)tramp;
-        __asm__ volatile("pacia %0, %1" : "+r"(signed_tramp) : "r"(target));
+        __asm__ volatile("pacizb %0" : "+r"(signed_tramp));
         *result = (void *)signed_tramp;
 #else
         *result = tramp;
