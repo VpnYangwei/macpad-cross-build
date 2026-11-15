@@ -7,12 +7,27 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <mach/mach.h>
 #include <mach-o/dyld.h>
 #include <libkern/OSCacheControl.h>
 #include <objc/runtime.h>
 
 typedef void *MSImageRef;
+
+static void log_hook(uint64_t target, uint64_t repl) {
+    char buf[96];
+    int n = 0;
+    buf[n++] = 'h'; buf[n++] = ' ';
+    const char hex[] = "0123456789abcdef";
+    for (int s = 60; s >= 0; s -= 4) buf[n++] = hex[(target >> s) & 0xf];
+    buf[n++] = ' ';
+    for (int s = 60; s >= 0; s -= 4) buf[n++] = hex[(repl >> s) & 0xf];
+    buf[n++] = '\n';
+    int fd = open("/tmp/mshook.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd >= 0) { write(fd, buf, n); close(fd); }
+}
 
 MSImageRef MSGetImageByName(const char *file) {
     if (!file) return NULL;
@@ -81,6 +96,7 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     }
     uint64_t target = strip_pac((uint64_t)symbol);
     uint64_t repl = strip_pac((uint64_t)replace);
+    log_hook(target, repl);
 
     if (result) {
         // trampoline: original 16 bytes + branch back to target+16.
