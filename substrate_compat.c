@@ -99,7 +99,8 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     log_hook(target, repl);
 
     // Bisect: hardcoded skip list of target low-32 addresses.
-    if ((target & 0xffffffffULL) == 0x9dec49d0ULL) {
+    if ((target & 0xffffffffULL) == 0x9dec49d0ULL ||
+        (target & 0xffffffffULL) == 0xa8c531ccULL) {
         if (result) *result = NULL;
         return;
     }
