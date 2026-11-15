@@ -68,16 +68,21 @@ static void write_branch(uint64_t from, uint64_t to) {
 }
 
 void MSHookFunction(void *symbol, void *replace, void **result) {
-    // EXPERIMENT noop: never patch anything, to bisect whether the hook
-    // itself (trampoline/PAC) is what faults defaults' main.
-    if (result) *result = NULL;
-    return;
-}
+    if (!symbol || !replace) {
+        if (result) *result = NULL;
+        return;
+    }
+    // Headless preferences clients (defaults probe) must not patch anything:
+    // the hooked flow faults later in main. Skip hooks entirely for them.
+    const char *pc = getenv("MACWS_CFPREFERENCES_CLIENT");
+    if (pc && pc[0] == '1' && pc[1] == '\0') {
+        if (result) *result = NULL;
+        return;
+    }
+    uint64_t target = strip_pac((uint64_t)symbol);
+    uint64_t repl = strip_pac((uint64_t)replace);
 
-#if 0
-static void unused_mshook_impl(void) {
-    uint64_t target = 0, repl = 0;
-    if (0) {
+    if (result) {
         // trampoline: original 16 bytes + branch back to target+16.
         // arm64e: the returned trampoline pointer must carry the same PAC
         // signature the caller expects for a function pointer, otherwise the
@@ -110,7 +115,6 @@ static void unused_mshook_impl(void) {
     make_writable(target, 16);
     write_branch(target, repl);
 }
-#endif
 
 void MSHookMessageEx(Class cls, SEL sel, IMP imp, IMP *result) {
     if (!cls || !sel || !imp) return;
