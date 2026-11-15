@@ -58,8 +58,43 @@ static void make_writable(uint64_t addr, size_t len) {
                VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
 }
 
-static void write_branch(uint64_t from, uint64_t to) {
-    int64_t offset = (int64_t)(to - from);
+// Fix up PC-relative adr/adrp instructions copied into the trampoline.
+// Original targets are computed from the source address, then re-encoded
+// relative to the trampoline address.
+static void fixup_pcrel(uint32_t *code, size_t insns, uint64_t src, uint64_t dst) {
+    for (size_t i = 0; i < insns; i++) {
+        uint32_t insn = code[i];
+        uint64_t src_pc = src + i * 4;
+        uint64_t dst_pc = dst + i * 4;
+        if ((insn & 0x9F000000) == 0x10000000) {  // adr
+            int64_t imm = ((int64_t)((insn >> 5) & 0x7FFFF) << 2) |
+                          ((insn >> 29) & 0x3);
+            if (imm & (1 << 20)) imm -= (1 << 21);  // sign extend 21-bit
+            uint64_t target = src_pc + imm;
+            int64_t nimm = (int64_t)(target - dst_pc);
+            if (nimm >= -(1 << 20) && nimm < (1 << 20)) {
+                insn &= ~(0x7FFFF << 5) & ~(0x3 << 29);
+                insn |= ((uint32_t)((nimm >> 2) & 0x7FFFF) << 5);
+                insn |= ((uint32_t)(nimm & 0x3) << 29);
+                code[i] = insn;
+            }
+        } else if ((insn & 0x9F000000) == 0x90000000) {  // adrp
+            int64_t imm = ((int64_t)((insn >> 5) & 0x7FFFF) << 2) |
+                          ((insn >> 29) & 0x3);
+            imm <<= 12;
+            if (imm & (1 << 32)) imm -= (1LL << 33);  // sign extend 33-bit
+            uint64_t target = (src_pc & ~0xFFFULL) + imm;
+            int64_t nimm = (int64_t)((target & ~0xFFFULL) - (dst_pc & ~0xFFFULL));
+            nimm >>= 12;
+            insn &= ~(0x7FFFF << 5) & ~(0x3 << 29);
+            insn |= ((uint32_t)((nimm >> 2) & 0x7FFFF) << 5);
+            insn |= ((uint32_t)(nimm & 0x3) << 29);
+            code[i] = insn;
+        }
+    }
+}
+
+static void write_branch(uint64_t from, uint64_t to) {    int64_t offset = (int64_t)(to - from);
     if (offset < -0x08000000LL || offset >= 0x08000000LL) {
         // Far branch: adrp x16, page(to); add x16, x16, off; br x16
         uint64_t from_page = from & ~0xFFFULL;
@@ -110,6 +145,7 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
                               MAP_ANON | MAP_PRIVATE, -1, 0);
         if (tramp == MAP_FAILED) { *result = NULL; return; }
         memcpy(tramp, (void *)target, 32);
+        fixup_pcrel((uint32_t *)tramp, 8, target, (uint64_t)tramp);
         uint64_t after = target + 32;
         int64_t off = (int64_t)(after - ((uint64_t)tramp + 32));
         if (off >= -0x08000000LL && off < 0x08000000LL) {
