@@ -39,12 +39,12 @@ jobs:
       - name: Split + codesign
         run: |
           cd "$GITHUB_WORKSPACE"
+          mkdir -p out
           FAT=libmachook/.theos/obj/macosx/libmachook.dylib
           lipo -thin arm64e "$FAT" -output out/libmachook.dylib
           lipo -thin arm64 "$FAT" -output out/libmachook_arm64.dylib
           codesign -s - -f out/libmachook.dylib
           codesign -s - -f out/libmachook_arm64.dylib
-          mkdir -p out
           shasum -a 256 out/*.dylib > out/sha256.txt
           ls -l out/
 
