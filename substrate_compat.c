@@ -37,8 +37,11 @@ MSImageRef MSGetImageByName(const char *file) {
 }
 
 void *MSFindSymbol(MSImageRef image, const char *name) {
-    if (!image || !name) return NULL;
-    return dlsym(image, name);
+    if (!name) return NULL;
+    // libxpc.dylib and other Ventura libs live only in the dyld shared
+    // cache here, so dlopen may return NULL; RTLD_DEFAULT still resolves
+    // the symbol from the process image list.
+    return dlsym(image ? image : RTLD_DEFAULT, name);
 }
 
 static uint64_t strip_pac(uint64_t v) {
