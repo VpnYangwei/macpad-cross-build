@@ -90,10 +90,12 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         if (result) *result = NULL;
         return;
     }
-    // Headless preferences clients (defaults probe) must not patch anything:
-    // the hooked flow faults later in main. Skip hooks entirely for them.
-    const char *pc = getenv("MACWS_CFPREFERENCES_CLIENT");
-    if (pc && pc[0] == '1' && pc[1] == '\0') {
+    // cfprefsd is the XPC server; its own startup must not be hooked.
+    // defaults and other clients need the XPC name hooks, so noop only for
+    // the cfprefsd process.
+    const char *pn = getprogname();
+    if (pn && pn[0] == 'm' && pn[1] == 'a' && pn[2] == 'c' && pn[3] == 'w' &&
+        pn[4] == 's' && pn[5] == '-' && pn[6] == 'c' && pn[7] == 'f') {
         if (result) *result = NULL;
         return;
     }
