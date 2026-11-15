@@ -123,6 +123,10 @@ static void write_branch(uint64_t from, uint64_t to) {    int64_t offset = (int6
         *(uint32_t *)from = b;
     }
     sys_icache_invalidate((void *)from, 16);
+    // Restore RX: leaving the dyld-cache page writable makes later execution
+    // fault (Bus error) under APRR.
+    vm_protect(mach_task_self(), (vm_address_t)(from & ~0x3FFFULL), 0x4000,
+               false, VM_PROT_READ | VM_PROT_EXEC);
 }
 
 void MSHookFunction(void *symbol, void *replace, void **result) {
@@ -143,14 +147,27 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     log_hook(target, repl);
 
     if (result) {
-        // EXPERIMENT: return the original symbol (with PAC) instead of a
-        // trampoline, to separate PAC-signing faults from trampoline-code
-        // faults. The patched entry would loop, so callers must timeout.
-        *result = symbol;
+        uint8_t *tramp = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE,
+                              MAP_ANON | MAP_PRIVATE, -1, 0);
+        if (tramp == MAP_FAILED) { *result = NULL; return; }
+        memcpy(tramp, (void *)target, 32);
+        fixup_pcrel((uint32_t *)tramp, 8, target, (uint64_t)tramp);
+        uint64_t after = target + 32;
+        int64_t off = (int64_t)(after - ((uint64_t)tramp + 32));
+        if (off >= -0x08000000LL && off < 0x08000000LL) {
+            uint32_t b = 0x14000000U | ((uint32_t)((off >> 2) & 0x03FFFFFFU));
+            *(uint32_t *)(tramp + 32) = b;
+        }
+        mprotect(tramp, 0x4000, PROT_READ | PROT_EXEC);
+        sys_icache_invalidate(tramp, 64);
+#if defined(__arm64e__)
+        uint64_t signed_tramp = (uint64_t)tramp;
+        __asm__ volatile("pacizb %0" : "+r"(signed_tramp));
+        *result = (void *)signed_tramp;
+#else
+        *result = tramp;
+#endif
     }
-
-    // EXPERIMENT: no patch, to see whether write_branch is the fault source.
-    return;
 
     make_writable(target, 16);
     write_branch(target, repl);
