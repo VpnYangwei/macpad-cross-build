@@ -32,7 +32,7 @@ libmachook_CFLAGS = -DFORCE_M1_DRIVER=1 -Wno-macro-redefined -Wno-unused-variabl
   -fno-modules -fno-implicit-modules -fno-implicit-module-maps \
   -I$(CURDIR) -isystem $(CURDIR)/../vendor/ios-xpc -I$(CURDIR)/../include \
   -I$(CURDIR)/.. -I$(CURDIR)/Compatibility -I$(CURDIR)/Diagnostics
-libmachook_LDFLAGS = -Wl,-no_fixup_chains -undefined dynamic_lookup
+libmachook_LDFLAGS = -Wl,-platform_version,macos,13.0,13.0 -Wl,-no_fixup_chains -undefined dynamic_lookup
 
 # A direct `make package` on the iPad must be just as safe as the documented
 # build_on_ios.sh entry point. Detect the target's rootless Theos installation
