@@ -15922,7 +15922,18 @@ __attribute__((constructor))
 static void macws_repair_auth_got_for_windowserver(void) {
     const char *program = getprogname();
     if (!program || strcmp(program, "WindowServer") != 0) return;
-    fprintf(stderr, "#### MACWS_FIXUP WindowServer: constructor reached (bisect)\n");
+    fprintf(stderr, "#### MACWS_FIXUP WindowServer: constructor reached\n");
+    macws_repair_got_via_symtab(
+        (const struct mach_header_64 *)_dyld_get_image_header(0),
+        _dyld_get_image_vmaddr_slide(0), "WindowServer(main)");
+    uint32_t count = _dyld_image_count();
+    for (uint32_t i = 1; i < count; i++) {
+        const char *name = _dyld_get_image_name(i);
+        if (!name || !strstr(name, "libxpc")) continue;
+        macws_repair_got_via_symtab(
+            (const struct mach_header_64 *)_dyld_get_image_header(i),
+            _dyld_get_image_vmaddr_slide(i), name);
+    }
 }
 
 DYLD_INTERPOSE(bootstrap_look_up_new, bootstrap_look_up);
