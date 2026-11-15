@@ -98,20 +98,10 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     uint64_t repl = strip_pac((uint64_t)replace);
     log_hook(target, repl);
 
-    // Bisect aid: skip a hook whose target low-32 equals MACWS_SKIP_HOOK.
-    const char *skip = getenv("MACWS_SKIP_HOOK");
-    if (skip) {
-        uint64_t want = 0;
-        for (int i = 0; i < 8 && skip[i]; i++) {
-            char c = skip[i];
-            uint64_t v = (c >= '0' && c <= '9') ? (c - '0') :
-                         (c >= 'a' && c <= 'f') ? (c - 'a' + 10) : 0;
-            want = (want << 4) | v;
-        }
-        if ((target & 0xffffffffULL) == want) {
-            if (result) *result = NULL;
-            return;
-        }
+    // Bisect: hardcoded skip list of target low-32 addresses.
+    if ((target & 0xffffffffULL) == 0x9dec49d0ULL) {
+        if (result) *result = NULL;
+        return;
     }
 
     if (result) {
