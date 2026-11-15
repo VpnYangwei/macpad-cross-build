@@ -127,6 +127,18 @@ static void write_branch(uint64_t from, uint64_t to) {    int64_t offset = (int6
     // fault (Bus error) under APRR.
     vm_protect(mach_task_self(), (vm_address_t)(from & ~0x3FFFULL), 0x4000,
                false, VM_PROT_READ | VM_PROT_EXECUTE);
+    // Verify the patch survived the RX restore.
+    {
+        char buf[64];
+        uint32_t insn = *(uint32_t *)from;
+        int n = 0;
+        buf[n++] = 'p'; buf[n++] = ' ';
+        const char hex[] = "0123456789abcdef";
+        for (int s = 28; s >= 0; s -= 4) buf[n++] = hex[(insn >> s) & 0xf];
+        buf[n++] = '\n';
+        int fd = open("/tmp/mshook.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (fd >= 0) { write(fd, buf, n); close(fd); }
+    }
 }
 
 void MSHookFunction(void *symbol, void *replace, void **result) {
