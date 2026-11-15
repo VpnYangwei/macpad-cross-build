@@ -133,10 +133,10 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         if (result) *result = NULL;
         return;
     }
-    // Bisect: for clients, skip the 2nd XPC hook (xpc_connection_create).
+    // Bisect: for clients, skip the 1st XPC hook (mach_service).
     static int hook_index = 0;
     int idx = hook_index++;
-    if (idx == 1) {
+    if (idx == 0) {
         if (result) *result = NULL;
         return;
     }
