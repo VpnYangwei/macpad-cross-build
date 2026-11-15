@@ -46,7 +46,18 @@ void *MSFindSymbol(MSImageRef image, const char *name) {
     // libxpc.dylib and other Ventura libs live only in the dyld shared
     // cache here, so dlopen may return NULL; RTLD_DEFAULT still resolves
     // the symbol from the process image list.
-    return dlsym(image ? image : RTLD_DEFAULT, name);
+    void *sym = dlsym(image ? image : RTLD_DEFAULT, name);
+#if defined(__arm64e__)
+    // dlsym returns a bare address on this chroot path; libmachook's
+    // BRAAZ/BLRAAZ call sites authenticate function pointers with the
+    // zero-discriminator, so sign it (pacizb) before returning.
+    if (sym) {
+        uint64_t s = (uint64_t)sym;
+        __asm__ volatile("pacizb %0" : "+r"(s));
+        sym = (void *)s;
+    }
+#endif
+    return sym;
 }
 
 static uint64_t strip_pac(uint64_t v) {
