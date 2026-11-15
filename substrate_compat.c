@@ -98,14 +98,6 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     uint64_t repl = strip_pac((uint64_t)replace);
     log_hook(target, repl);
 
-    // Bisect: skip hook by call index (target addresses shift with ASLR).
-    static int hook_index = 0;
-    int idx = hook_index++;
-    if (idx == 0 || idx == 1) {  // skip hooks #1 and #2
-        if (result) *result = NULL;
-        return;
-    }
-
     if (result) {
         // trampoline: copy 32 bytes (8 insns, enough for arm64e PAC prologue
         // + first real insns) then branch back to target+32.
