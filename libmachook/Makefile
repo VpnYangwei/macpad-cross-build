@@ -28,7 +28,7 @@ libmachook_FRAMEWORKS = AudioToolbox CoreGraphics CoreImage ImageIO IOKit IOSurf
 # permitted, but dyld aborts at injection time when Metal_hooks.x resolves the
 # missing native-AGX witnesses.  Define it in the owning target rather than
 # relying on an interactive shell's CFLAGS.
-libmachook_CFLAGS = -DFORCE_M1_DRIVER=1 -Wno-macro-redefined -Wno-unused-variable -Wno-unused-function -Wno-deprecated-declarations \
+libmachook_CFLAGS = -DFORCE_M1_DRIVER=1 -Wno-macro-redefined -Wno-unused-variable -Wno-unused-function -Wno-deprecated-declarations -Wno-tautological-compare -Wno-tautological-pointer-compare \
   -fno-modules -fno-implicit-modules -fno-implicit-module-maps \
   -I$(CURDIR) -isystem $(CURDIR)/../vendor/ios-xpc -I$(CURDIR)/../include \
   -I$(CURDIR)/.. -I$(CURDIR)/Compatibility -I$(CURDIR)/Diagnostics
