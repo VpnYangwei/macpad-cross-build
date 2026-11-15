@@ -149,6 +149,9 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         *result = symbol;
     }
 
+    // EXPERIMENT: no patch, to see whether write_branch is the fault source.
+    return;
+
     make_writable(target, 16);
     write_branch(target, repl);
 }
