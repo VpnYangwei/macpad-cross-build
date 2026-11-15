@@ -126,11 +126,17 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         return;
     }
     // cfprefsd is the XPC server; its own startup must not be hooked.
-    // defaults and other clients need the XPC name hooks, so noop only for
-    // the cfprefsd process.
     const char *pn = getprogname();
-    if (pn && pn[0] == 'm' && pn[1] == 'a' && pn[2] == 'c' && pn[3] == 'w' &&
-        pn[4] == 's' && pn[5] == '-' && pn[6] == 'c' && pn[7] == 'f') {
+    int is_cfprefsd = pn && pn[0] == 'm' && pn[1] == 'a' && pn[2] == 'c' &&
+        pn[3] == 'w' && pn[4] == 's' && pn[5] == '-' && pn[6] == 'c' && pn[7] == 'f';
+    if (is_cfprefsd) {
+        if (result) *result = NULL;
+        return;
+    }
+    // Bisect: for clients, skip the 2nd XPC hook (xpc_connection_create).
+    static int hook_index = 0;
+    int idx = hook_index++;
+    if (idx == 1) {
         if (result) *result = NULL;
         return;
     }
