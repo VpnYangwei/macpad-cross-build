@@ -13,7 +13,7 @@ jobs:
         run: |
           ls -l libmachook.patched.dylib
           cp libmachook.patched.dylib libmachook.signed.dylib
-          codesign -s - -f libmachook.signed.dylib
+          codesign -s - --digest-algorithm=sha1 -f libmachook.signed.dylib
           codesign -dvvv libmachook.signed.dylib 2>&1 | grep -iE 'CDHash|Identifier' | head -3
           mkdir -p out
           cp libmachook.signed.dylib out/
