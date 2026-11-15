@@ -14,20 +14,11 @@
 
 typedef void *MSImageRef;
 
-static int my_streq(const char *a, const char *b) {
-    if (!a || !b) return 0;
-    while (*a && *a == *b) { a++; b++; }
-    return *a == *b;
-}
-
 MSImageRef MSGetImageByName(const char *file) {
     if (!file) return NULL;
-    // Headless preferences clients must not dlopen GUI frameworks (SkyLight,
-    // Metal, QuartzCore): their init faults (Bus error) on this chroot path.
-    // libmachook sets MACWS_CFPREFERENCES_CLIENT=1 for the defaults probe.
-    const char *pc = getenv("MACWS_CFPREFERENCES_CLIENT");
-    if (pc && my_streq(pc, "1")) return NULL;
-    return dlopen(file, RTLD_NOW | RTLD_LOCAL);
+    // RTLD_LAZY: defer symbol binding/init so dlopen of an unloaded GUI
+    // framework returns without running its constructors on this chroot path.
+    return dlopen(file, RTLD_LAZY | RTLD_LOCAL);
 }
 
 void *MSFindSymbol(MSImageRef image, const char *name) {
