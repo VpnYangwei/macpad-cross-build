@@ -126,7 +126,7 @@ static void write_branch(uint64_t from, uint64_t to) {    int64_t offset = (int6
     // Restore RX: leaving the dyld-cache page writable makes later execution
     // fault (Bus error) under APRR.
     vm_protect(mach_task_self(), (vm_address_t)(from & ~0x3FFFULL), 0x4000,
-               false, VM_PROT_READ | VM_PROT_EXEC);
+               false, VM_PROT_READ | VM_PROT_EXECUTE);
 }
 
 void MSHookFunction(void *symbol, void *replace, void **result) {
