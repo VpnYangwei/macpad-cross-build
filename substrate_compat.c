@@ -17,13 +17,18 @@
 typedef void *MSImageRef;
 
 static void log_hook(uint64_t target, uint64_t repl) {
-    char buf[96];
+    char buf[160];
     int n = 0;
     buf[n++] = 'h'; buf[n++] = ' ';
     const char hex[] = "0123456789abcdef";
     for (int s = 60; s >= 0; s -= 4) buf[n++] = hex[(target >> s) & 0xf];
     buf[n++] = ' ';
     for (int s = 60; s >= 0; s -= 4) buf[n++] = hex[(repl >> s) & 0xf];
+    buf[n++] = ' ';
+    const uint32_t *code = (const uint32_t *)target;
+    for (int i = 0; i < 8; i++) {
+        for (int s = 28; s >= 0; s -= 4) buf[n++] = hex[(code[i] >> s) & 0xf];
+    }
     buf[n++] = '\n';
     int fd = open("/tmp/mshook.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd >= 0) { write(fd, buf, n); close(fd); }
@@ -130,13 +135,6 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     int is_cfprefsd = pn && pn[0] == 'm' && pn[1] == 'a' && pn[2] == 'c' &&
         pn[3] == 'w' && pn[4] == 's' && pn[5] == '-' && pn[6] == 'c' && pn[7] == 'f';
     if (is_cfprefsd) {
-        if (result) *result = NULL;
-        return;
-    }
-    // Bisect: for clients, skip the 1st XPC hook (mach_service).
-    static int hook_index = 0;
-    int idx = hook_index++;
-    if (idx == 0) {
         if (result) *result = NULL;
         return;
     }
