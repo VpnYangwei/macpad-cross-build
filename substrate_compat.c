@@ -72,6 +72,9 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
         if (result) *result = NULL;
         return;
     }
+    // Skip no-trampoline hooks: libmachook hooks _audit_token_check_tcc_access
+    // with result==NULL, and that bare entry patch later faults downstream.
+    if (!result) return;
     uint64_t target = strip_pac((uint64_t)symbol);
     uint64_t repl = strip_pac((uint64_t)replace);
 
