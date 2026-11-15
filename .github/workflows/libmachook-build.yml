@@ -1,0 +1,56 @@
+name: libmachook-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GNU make
+        run: |
+          brew install make
+          echo "$(brew --prefix)/opt/make/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Install theos
+        run: |
+          export THEOS=/opt/theos
+          sudo mkdir -p "$THEOS"
+          sudo chown "$USER" "$THEOS"
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$THEOS" 2>&1 | tail -2
+
+      - name: Link iPhoneOS SDK into theos
+        run: |
+          export THEOS=/opt/theos
+          SDK_DIR=$(xcrun --sdk iphoneos --show-sdk-path)
+          SDK_VER=$(basename "$SDK_DIR" | sed 's/^[^0-9]*//')
+          ln -s "$SDK_DIR" "$THEOS/sdks/iPhoneOS16.0.sdk"
+
+      - name: Build libmachook
+        env:
+          THEOS: /opt/theos
+        run: |
+          cd "$GITHUB_WORKSPACE/libmachook"
+          gmake clean all STRIP=0 2>&1 | tail -8
+          ls -l .theos/obj/macosx/libmachook.dylib
+
+      - name: Split + codesign
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          FAT=libmachook/.theos/obj/macosx/libmachook.dylib
+          lipo -thin arm64e "$FAT" -output out/libmachook.dylib
+          lipo -thin arm64 "$FAT" -output out/libmachook_arm64.dylib
+          codesign -s - -f out/libmachook.dylib
+          codesign -s - -f out/libmachook_arm64.dylib
+          mkdir -p out
+          shasum -a 256 out/*.dylib > out/sha256.txt
+          ls -l out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmachook-built
+          path: out/
+          if-no-files-found: error

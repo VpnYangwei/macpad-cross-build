@@ -1,0 +1,31 @@
+name: libmachook-codesign
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: codesign patched libmachook (arm64e + arm64)
+        run: |
+          ls -l libmachook.patched.dylib libmachook_arm64.patched.dylib
+          cp libmachook.patched.dylib libmachook.signed.dylib
+          cp libmachook_arm64.patched.dylib libmachook_arm64.signed.dylib
+          codesign -s - -f libmachook.signed.dylib
+          codesign -s - -f libmachook_arm64.signed.dylib
+          codesign -dvvv libmachook.signed.dylib 2>&1 | grep -iE 'CDHash|Identifier|flags' | head -4
+          codesign -dvvv libmachook_arm64.signed.dylib 2>&1 | grep -iE 'CDHash|Identifier|flags' | head -4
+          mkdir -p out
+          cp libmachook.signed.dylib out/
+          cp libmachook_arm64.signed.dylib out/
+          shasum -a 256 out/*.dylib > out/sha256.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmachook-signed
+          path: out/
+          if-no-files-found: error

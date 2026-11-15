@@ -1,0 +1,32 @@
+name: substrate-compat-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build macOS-compatible substrate (arm64e)
+        run: |
+          SDK=$(xcrun --sdk macosx --show-sdk-path)
+          echo "SDK=$SDK"
+          mkdir -p out
+          clang -target arm64e-apple-macos13.0 -isysroot "$SDK" -dynamiclib -O2 \
+            -install_name /usr/local/lib/libsubstrate.dylib \
+            -o out/libsubstrate.dylib substrate_compat.c \
+            -framework Foundation -framework CoreFoundation
+          echo "=== otool -L ==="
+          otool -L out/libsubstrate.dylib
+          echo "=== 导出符号 ==="
+          nm -gU out/libsubstrate.dylib | grep -E 'MSHook|MSFind|MSGet'
+          shasum -a 256 out/libsubstrate.dylib | awk '{print $1}' > out/libsubstrate.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: substrate-compat
+          path: out/
+          if-no-files-found: error
