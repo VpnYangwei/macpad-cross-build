@@ -161,7 +161,10 @@ static void write_branch(uint64_t from, uint64_t to) {
     }
     sys_icache_invalidate((void *)from, 16);
     vm_protect(mach_task_self(), (vm_address_t)page, page_len,
-               true, VM_PROT_READ | VM_PROT_EXECUTE);
+               false, VM_PROT_READ | VM_PROT_EXECUTE);
+    // Invalidate again AFTER the RX restore: the permission change can
+    // invalidate the instruction cache entry for the patched page.
+    sys_icache_invalidate((void *)from, 16);
     {
         char buf[64];
         uint32_t insn = *(uint32_t *)from;
