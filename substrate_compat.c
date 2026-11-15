@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <signal.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -13,6 +14,43 @@
 #include <mach-o/dyld.h>
 #include <libkern/OSCacheControl.h>
 #include <objc/runtime.h>
+
+static void crash_log(const char *tag, uintptr_t v) {
+    char buf[80];
+    int n = 0;
+    const char *t = tag;
+    while (*t && n < 40) buf[n++] = *t++;
+    buf[n++] = ' ';
+    const char hex[] = "0123456789abcdef";
+    for (int s = 60; s >= 0; s -= 4) buf[n++] = hex[(v >> s) & 0xf];
+    buf[n++] = '\n';
+    int fd = open("/tmp/sub_crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd >= 0) { write(fd, buf, n); close(fd); }
+}
+
+static void sigbus_handler(int sig, siginfo_t *si, void *ctx) {
+    // Best-effort capture of the faulting PC/LR from the signal frame.
+    // We cannot safely call printf here; use raw writes.
+    uintptr_t *frame = (uintptr_t *)ctx;
+    crash_log("SIGBUS", (uintptr_t)si->si_addr);
+    int fd = open("/tmp/sub_crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd >= 0) {
+        char b[160];
+        int n = 0;
+        const char *h = "0123456789abcdef";
+        const char *t = "REGS ";
+        while (*t && n < 60) b[n++] = *t++;
+        // arm64 ucontext: mcontext is at offset 0x30 in ucontext; print 16 words
+        for (int i = 0; i < 16; i++) {
+            uintptr_t v = frame[i + 6];
+            for (int s = 60; s >= 0; s -= 4) b[n++] = h[(v >> s) & 0xf];
+        }
+        b[n++] = '\n';
+        write(fd, b, n);
+        close(fd);
+    }
+    _exit(128 + sig);
+}
 
 typedef void *MSImageRef;
 
@@ -126,7 +164,7 @@ static void write_branch(uint64_t from, uint64_t to) {
     }
     sys_icache_invalidate((void *)from, 16);
     vm_protect(mach_task_self(), (vm_address_t)page, page_len,
-               false, VM_PROT_READ | VM_PROT_EXECUTE);
+               true, VM_PROT_READ | VM_PROT_EXECUTE);
     {
         char buf[64];
         uint32_t insn = *(uint32_t *)from;
@@ -141,6 +179,16 @@ static void write_branch(uint64_t from, uint64_t to) {
 }
 
 void MSHookFunction(void *symbol, void *replace, void **result) {
+    static int sig_installed = 0;
+    if (!sig_installed) {
+        sig_installed = 1;
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_sigaction = sigbus_handler;
+        sa.sa_flags = SA_SIGINFO;
+        sigaction(SIGBUS, &sa, NULL);
+        sigaction(SIGSEGV, &sa, NULL);
+    }
     if (!symbol || !replace) {
         if (result) *result = NULL;
         return;
