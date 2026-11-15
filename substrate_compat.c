@@ -68,17 +68,16 @@ static void write_branch(uint64_t from, uint64_t to) {
 }
 
 void MSHookFunction(void *symbol, void *replace, void **result) {
-    if (!symbol || !replace) {
-        if (result) *result = NULL;
-        return;
-    }
-    // Skip no-trampoline hooks: libmachook hooks _audit_token_check_tcc_access
-    // with result==NULL, and that bare entry patch later faults downstream.
-    if (!result) return;
-    uint64_t target = strip_pac((uint64_t)symbol);
-    uint64_t repl = strip_pac((uint64_t)replace);
+    // EXPERIMENT noop: never patch anything, to bisect whether the hook
+    // itself (trampoline/PAC) is what faults defaults' main.
+    if (result) *result = NULL;
+    return;
+}
 
-    if (result) {
+#if 0
+static void unused_mshook_impl(void) {
+    uint64_t target = 0, repl = 0;
+    if (0) {
         // trampoline: original 16 bytes + branch back to target+16.
         // arm64e: the returned trampoline pointer must carry the same PAC
         // signature the caller expects for a function pointer, otherwise the
@@ -111,6 +110,7 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
     make_writable(target, 16);
     write_branch(target, repl);
 }
+#endif
 
 void MSHookMessageEx(Class cls, SEL sel, IMP imp, IMP *result) {
     if (!cls || !sel || !imp) return;
