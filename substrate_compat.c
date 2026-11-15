@@ -29,21 +29,19 @@ static void crash_log(const char *tag, uintptr_t v) {
 }
 
 static void sigbus_handler(int sig, siginfo_t *si, void *ctx) {
-    // Best-effort capture of the faulting PC/LR from the signal frame.
-    // We cannot safely call printf here; use raw writes.
-    uintptr_t *frame = (uintptr_t *)ctx;
     crash_log("SIGBUS", (uintptr_t)si->si_addr);
+    uintptr_t pc = (uintptr_t)si->si_addr;
     int fd = open("/tmp/sub_crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd >= 0) {
-        char b[160];
+        char b[256];
         int n = 0;
         const char *h = "0123456789abcdef";
-        const char *t = "REGS ";
-        while (*t && n < 60) b[n++] = *t++;
-        // arm64 ucontext: mcontext is at offset 0x30 in ucontext; print 16 words
+        // dump 8 insns before PC and 8 after
+        const uint32_t *base = (const uint32_t *)(pc - 32);
+        b[n++] = 'C'; b[n++] = ' ';
         for (int i = 0; i < 16; i++) {
-            uintptr_t v = frame[i + 6];
-            for (int s = 60; s >= 0; s -= 4) b[n++] = h[(v >> s) & 0xf];
+            uint32_t v = base[i];
+            for (int s = 28; s >= 0; s -= 4) b[n++] = h[(v >> s) & 0xf];
         }
         b[n++] = '\n';
         write(fd, b, n);
