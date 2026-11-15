@@ -99,25 +99,16 @@ static void fixup_pcrel(uint32_t *code, size_t insns, uint64_t src, uint64_t dst
     }
 }
 
-static void write_branch(uint64_t from, uint64_t to) {    int64_t offset = (int64_t)(to - from);
+static void write_branch(uint64_t from, uint64_t to) {
+    int64_t offset = (int64_t)(to - from);
+    uint64_t page = from & ~0x3FFFULL;
+    size_t page_len = 0x4000;
     if (offset < -0x08000000LL || offset >= 0x08000000LL) {
-        // Far branch: adrp x16, page(to); add x16, x16, off; br x16
-        uint64_t from_page = from & ~0xFFFULL;
-        uint64_t to_page = to & ~0xFFFULL;
-        int64_t page_off = (int64_t)(to_page - from_page);
-        uint32_t adrp = 0x90000010U | (((uint32_t)((page_off >> 12) & 0x3FFFF)) << 5) |
-                        (((uint32_t)((page_off >> 14) & 0x7FFFF)) << 5);
-        // encode adrp properly: immhi:19 = bits 20:2 of page_off, immlo:2 = bits 1:0
-        int64_t imm = page_off >> 12;
-        uint32_t immhi = (uint32_t)((imm >> 2) & 0x7FFFF);
-        uint32_t immlo = (uint32_t)(imm & 0x3);
-        adrp = 0x90000010U | (immlo << 29) | (immhi << 5);
-        uint32_t add = 0x91000210U | ((uint32_t)(to & 0xFFF) << 10);
-        uint32_t br = 0xD61F0200U;
+        // Absolute far branch: ldr x16, #8; br x16; .quad to
         uint32_t *p = (uint32_t *)from;
-        p[0] = adrp;
-        p[1] = add;
-        p[2] = br;
+        p[0] = 0x58000050U;  // ldr x16, #8
+        p[1] = 0xD61F0200U;  // br x16
+        *(uint64_t *)(p + 2) = to;
     } else {
         uint32_t b = 0x14000000U | ((uint32_t)((offset >> 2) & 0x03FFFFFFU));
         *(uint32_t *)from = b;
@@ -125,7 +116,7 @@ static void write_branch(uint64_t from, uint64_t to) {    int64_t offset = (int6
     sys_icache_invalidate((void *)from, 16);
     // Restore RX: leaving the dyld-cache page writable makes later execution
     // fault (Bus error) under APRR.
-    vm_protect(mach_task_self(), (vm_address_t)(from & ~0x3FFFULL), 0x4000,
+    vm_protect(mach_task_self(), (vm_address_t)page, page_len,
                false, VM_PROT_READ | VM_PROT_EXECUTE);
     // Verify the patch survived the RX restore.
     {
