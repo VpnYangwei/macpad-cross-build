@@ -14,13 +14,19 @@
 
 typedef void *MSImageRef;
 
+static int my_streq(const char *a, const char *b) {
+    if (!a || !b) return 0;
+    while (*a && *a == *b) { a++; b++; }
+    return *a == *b;
+}
+
 MSImageRef MSGetImageByName(const char *file) {
     if (!file) return NULL;
     // Headless preferences clients must not dlopen GUI frameworks (SkyLight,
     // Metal, QuartzCore): their init faults (Bus error) on this chroot path.
     // libmachook sets MACWS_CFPREFERENCES_CLIENT=1 for the defaults probe.
     const char *pc = getenv("MACWS_CFPREFERENCES_CLIENT");
-    if (pc && strcmp(pc, "1") == 0) return NULL;
+    if (pc && my_streq(pc, "1")) return NULL;
     return dlopen(file, RTLD_NOW | RTLD_LOCAL);
 }
 
