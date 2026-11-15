@@ -11,7 +11,7 @@ jobs:
 
       - name: Install GNU make
         run: |
-          brew install make
+          brew install make ldid
           echo "$(brew --prefix)/opt/make/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Install theos
