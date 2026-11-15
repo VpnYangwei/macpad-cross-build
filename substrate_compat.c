@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <mach/mach.h>
+#include <mach-o/dyld.h>
 #include <libkern/OSCacheControl.h>
 #include <objc/runtime.h>
 
@@ -15,10 +16,17 @@ typedef void *MSImageRef;
 
 MSImageRef MSGetImageByName(const char *file) {
     if (!file) return NULL;
-    // RTLD_NOLOAD: return an existing image only, never trigger init of an
-    // unloaded framework. The chroot SkyLight framework is not loadable by a
-    // headless client; forcing RTLD_NOW init faults (Bus error) inside it.
-    return dlopen(file, RTLD_NOW | RTLD_NOLOAD);
+    // Never dlopen an image that is not already loaded. On this chroot path
+    // even RTLD_NOLOAD faults inside dyld for unloaded frameworks; consult
+    // the dyld image list first and only dlopen(NOLOAD) an existing image.
+    uint32_t n = _dyld_image_count();
+    for (uint32_t i = 0; i < n; i++) {
+        const char *nm = _dyld_get_image_name(i);
+        if (nm && strcmp(nm, file) == 0) {
+            return dlopen(file, RTLD_NOW | RTLD_NOLOAD);
+        }
+    }
+    return NULL;
 }
 
 void *MSFindSymbol(MSImageRef image, const char *name) {
