@@ -16,17 +16,12 @@ typedef void *MSImageRef;
 
 MSImageRef MSGetImageByName(const char *file) {
     if (!file) return NULL;
-    // Never dlopen an image that is not already loaded. On this chroot path
-    // even RTLD_NOLOAD faults inside dyld for unloaded frameworks; consult
-    // the dyld image list first and only dlopen(NOLOAD) an existing image.
-    uint32_t n = _dyld_image_count();
-    for (uint32_t i = 0; i < n; i++) {
-        const char *nm = _dyld_get_image_name(i);
-        if (nm && strcmp(nm, file) == 0) {
-            return dlopen(file, RTLD_NOW | RTLD_NOLOAD);
-        }
-    }
-    return NULL;
+    // Headless preferences clients must not dlopen GUI frameworks (SkyLight,
+    // Metal, QuartzCore): their init faults (Bus error) on this chroot path.
+    // libmachook sets MACWS_CFPREFERENCES_CLIENT=1 for the defaults probe.
+    const char *pc = getenv("MACWS_CFPREFERENCES_CLIENT");
+    if (pc && strcmp(pc, "1") == 0) return NULL;
+    return dlopen(file, RTLD_NOW | RTLD_LOCAL);
 }
 
 void *MSFindSymbol(MSImageRef image, const char *name) {
