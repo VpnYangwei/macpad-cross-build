@@ -210,16 +210,6 @@ void MSHookFunction(void *symbol, void *replace, void **result) {
                               MAP_ANON | MAP_PRIVATE, -1, 0);
         if (tramp == MAP_FAILED) { *result = NULL; return; }
         memcpy(tramp, (void *)target, 32);
-        // The caller already signed SP with pacibsp on entry to the replace
-        // function. Re-running the original pacibsp here double-signs SP and
-        // faults. Replace any leading pacibsp/paciasp with NOP.
-        for (int i = 0; i < 8; i++) {
-            uint32_t insn = ((uint32_t *)tramp)[i];
-            if (insn == 0xD503237F ||  // pacibsp
-                insn == 0xD503233F) {  // paciasp
-                ((uint32_t *)tramp)[i] = 0xD503201F;  // nop
-            }
-        }
         fixup_pcrel((uint32_t *)tramp, 8, target, (uint64_t)tramp);
         uint64_t after = target + 32;
         int64_t off = (int64_t)(after - ((uint64_t)tramp + 32));
