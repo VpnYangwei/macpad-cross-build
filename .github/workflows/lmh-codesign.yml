@@ -1,0 +1,27 @@
+name: libmachook-codesign
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: codesign patched libmachook
+        run: |
+          ls -l libmachook.patched.dylib
+          cp libmachook.patched.dylib libmachook.signed.dylib
+          codesign -s - -f libmachook.signed.dylib
+          codesign -dvvv libmachook.signed.dylib 2>&1 | grep -iE 'CDHash|Identifier' | head -3
+          mkdir -p out
+          cp libmachook.signed.dylib out/
+          shasum -a 256 out/libmachook.signed.dylib | awk '{print $1}' > out/sha256.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmachook-signed
+          path: out/
+          if-no-files-found: error
