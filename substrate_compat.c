@@ -160,12 +160,11 @@ static void write_branch(uint64_t from, uint64_t to) {
         *(uint32_t *)from = b;
     }
     sys_icache_invalidate((void *)from, 16);
-    vm_protect(mach_task_self(), (vm_address_t)page, page_len,
-               false, VM_PROT_READ | VM_PROT_EXECUTE);
-    // Invalidate again AFTER the RX restore: the permission change can
-    // invalidate the instruction cache entry for the patched page.
-    sys_icache_invalidate((void *)from, 16);
+    // No RX restore: keep the COW page writable. With the ldr+br absolute
+    // branch the earlier Bus errors (from the broken adrp encoding) should be
+    // gone; leaving RWX avoids the COW rollback of set_maximum=false.
     {
+        (void)page; (void)page_len;
         char buf[64];
         uint32_t insn = *(uint32_t *)from;
         int n = 0;
