@@ -33,7 +33,7 @@ jobs:
           THEOS: /opt/theos
         run: |
           cd "$GITHUB_WORKSPACE/libmachook"
-          gmake clean all STRIP=0 2>&1 | tail -8
+          gmake clean all STRIP=0 2>&1 | grep -aE 'error|Error|fatal|warning.*not found' || true
           ls -l .theos/obj/macosx/libmachook.dylib
 
       - name: Split + codesign
