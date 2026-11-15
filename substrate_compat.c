@@ -114,8 +114,10 @@ static void write_branch(uint64_t from, uint64_t to) {
         *(uint32_t *)from = b;
     }
     sys_icache_invalidate((void *)from, 16);
-    // EXPERIMENT: do not restore RX (keep the COW page writable) to test
-    // whether the RX restore was rolling the patch back.
+    // Restore RX with set_maximum so the COW page keeps its writable-again
+    // capability without discarding the patched bytes.
+    vm_protect(mach_task_self(), (vm_address_t)page, page_len,
+               true, VM_PROT_READ | VM_PROT_EXECUTE);
     {
         char buf[64];
         uint32_t insn = *(uint32_t *)from;
