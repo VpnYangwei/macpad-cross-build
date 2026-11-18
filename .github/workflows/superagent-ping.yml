@@ -7,9 +7,8 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Comment on the smoke-test issue as github-actions
+      - name: Ask the agent to fix the issue title
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api -X POST "repos/${{ github.repository }}/issues/2/comments" \
-            -f body='@VpnYangwei 请修正 issue 标题里的错别字，把「通道验证」改成「通道验收」。这是一次通道测试。'
+          gh api -X POST "repos/${{ github.repository }}/issues/2/comments"             -f body='@VpnYangwei 请修正这个 issue 标题里的错别字：现在写的是「通道验证」，应为「通道验收」。改完告诉我。'
