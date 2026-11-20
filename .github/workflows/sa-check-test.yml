@@ -12,5 +12,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api -X POST "repos/${{ github.repository }}/issues" \
-            -f title='[check-test] 新增 docs/verify-selftest.md' \
-            -f body='@VpnYangwei 请在仓库根目录新增文件 docs/verify-selftest.md，内容只有一行：verified by worker。提交到新分支并开 PR，标题写「docs: add verify-selftest」。'
+            -f title='[check-test] 新增 docs/worker-selfcheck.md' \
+            -f body='@VpnYangwei 请在仓库根目录新增文件 docs/worker-selfcheck.md，内容只有一行：worker self-check ok。提交到新分支并开 PR，标题写「docs: add worker-selfcheck」。'
