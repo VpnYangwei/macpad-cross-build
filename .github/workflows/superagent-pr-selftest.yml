@@ -1,0 +1,16 @@
+name: superagent-pr-selftest
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open a code-change request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/issues" \
+            -f title='[pr-test] 新增 docs/agent-selftest.md' \
+            -f body='@VpnYangwei 请在仓库根目录新增文件 docs/agent-selftest.md，内容只有一行：hello from superagent。提交到新分支并开一个 PR，标题写「docs: add agent-selftest」。'
