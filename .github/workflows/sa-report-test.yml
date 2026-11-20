@@ -1,0 +1,16 @@
+name: sa-report-test
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask for a documentation addition
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/issues" \
+            -f title='[report-test] 新增 docs/report-sections.md' \
+            -f body='@VpnYangwei 请在仓库根目录新增文件 docs/report-sections.md，内容只有一行：three sections。提交到新分支并开 PR，标题写「docs: add report-sections」。'
