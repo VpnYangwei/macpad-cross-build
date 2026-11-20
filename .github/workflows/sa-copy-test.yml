@@ -1,0 +1,16 @@
+name: sa-copy-test
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask for a copy fix in a source file
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/issues" \
+            -f title='[copy-test] interpose.h 第 3 行行尾多余空格' \
+            -f body='@VpnYangwei interpose.h 第 3 行是一行只有 `//` 加两个行尾空格的空注释行（`//  `）。请把这两个行尾空格删掉，改成 `//`，其他行一律不动。提交到新分支并开 PR，标题写「style: trim trailing spaces in interpose.h header」。'
